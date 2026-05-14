@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0182)file:///C:/Users/Sai/Downloads/%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AB%E0%B8%B2%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99%E0%B9%80%E0%B8%8A%E0%B9%88%E0%B8%B2_8.html -->
+<!-- saved from url=(0182)file:///C:/Users/Sai/Downloads/%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AB%E0%B8%B2%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99%E0%B9%80%E0%B8%8A%E0%B9%88%E0%B8%B2_9.html -->
 <html lang="th"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -128,7 +128,7 @@
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox" style="display:none" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()"><i class="ti ti-x"></i></button>
-  <img id="lightbox-img" src="file:///C:/Users/Sai/Downloads/%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AB%E0%B8%B2%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99%E0%B9%80%E0%B8%8A%E0%B9%88%E0%B8%B2_8.html" onclick="event.stopPropagation()">
+  <img id="lightbox-img" src="file:///C:/Users/Sai/Downloads/%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AB%E0%B8%B2%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99%E0%B9%80%E0%B8%8A%E0%B9%88%E0%B8%B2_9.html" onclick="event.stopPropagation()">
 </div>
 
 <div class="wrap">
@@ -185,6 +185,16 @@
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-add" onclick="addShop()" style="flex:1"><i class="ti ti-plus" style="font-size:14px;vertical-align:-2px;margin-right:4px"></i>บันทึกร้านค้า</button>
       <span style="font-size:12px;color:var(--text3)" id="shopCounterLabel">0/5 ร้านวันนี้</span>
+    </div>
+  </div>
+
+  <div id="pending-photo-section" style="display:none" class="card">
+    <div class="section-label">📷 ใส่รูปร้าน — <span id="pending-name"></span></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">ต้องใส่รูปอย่างน้อย 1 รูป (สูงสุด 2 รูป) ก่อนบันทึก</div>
+    <div id="pending-photos" class="photos-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-confirm-shop" onclick="confirmShop()" class="btn-add" style="flex:1;opacity:0.4" disabled="">✅ บันทึกร้านค้า</button>
+      <button onclick="cancelPendingShop()" style="padding:9px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text2);font-size:13px;font-family:&#39;Sarabun&#39;,sans-serif;cursor:pointer">ยกเลิก</button>
     </div>
   </div>
 
@@ -354,6 +364,62 @@
 const STORAGE_KEY = 'phuket_grocery_prospects_v3';
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbws6a8KUa7jwvqk-lRDYlLBtjQN6TwWvsvuoKfOzNVyNiEYN3vrxQM6IlbkPdJRCnWK6A/exec';
 let data = [];
+let pendingShop = null;
+
+function updatePendingPhotoUI(){
+  const ph = pendingShop ? pendingShop.photos : [];
+  const container = document.getElementById('pending-photos');
+  let h = '';
+  ph.forEach((src,i)=>{ h+=`<div class="photo-thumb"><img src="${src}" style="width:70px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e0e0dc"><button onclick="delPendingPhoto(${i})" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#A32D2D;color:#fff;border:none;cursor:pointer;font-size:9px">✕</button></div>`; });
+  if(ph.length<2) h+=`<div class="photo-add-slot" onclick="trigPendingPhoto()" style="width:70px;height:56px"><i class="ti ti-camera-plus"></i><span>${ph.length}/2</span></div>`;
+  container.innerHTML=h;
+  document.getElementById('btn-confirm-shop').disabled = ph.length===0;
+  document.getElementById('btn-confirm-shop').style.opacity = ph.length===0?'0.4':'1';
+}
+
+window.trigPendingPhoto=function(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';
+  inp.onchange=e=>{if(e.target.files[0])compressPending(e.target.files[0]);};
+  document.body.appendChild(inp);inp.click();setTimeout(()=>inp.remove(),30000);
+};
+
+function compressPending(file){
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>{
+    const M=800,c=document.createElement('canvas');let w=img.width,h=img.height;
+    if(w>h&&w>M){h=Math.round(h*M/w);w=M;}else if(h>M){w=Math.round(w*M/h);h=M;}
+    c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+    if(!pendingShop.photos)pendingShop.photos=[];
+    if(pendingShop.photos.length>=2){alert('เพิ่มได้สูงสุด 2 รูป');return;}
+    pendingShop.photos.push(c.toDataURL('image/jpeg',.7));
+    updatePendingPhotoUI();
+  };img.src=e.target.result;};r.readAsDataURL(file);
+}
+
+window.delPendingPhoto=function(i){
+  pendingShop.photos.splice(i,1);updatePendingPhotoUI();
+};
+
+window.confirmShop=function(){
+  if(!pendingShop||pendingShop.photos.length===0){alert('กรุณาใส่รูปอย่างน้อย 1 รูป');return;}
+  data.unshift(pendingShop);
+  save(); syncToSheet(pendingShop);
+  pendingShop=null;
+  document.getElementById('pending-photo-section').style.display='none';
+  ['fName','fPh','fA','fNo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fName=document.getElementById('fName');if(fName)fName.value='';
+  document.getElementById('fPhone').value='';
+  document.getElementById('fAddr').value='';
+  document.getElementById('fNote').value='';
+  document.getElementById('fType').value='';
+  document.getElementById('fStatus').value='pending';
+  render();switchTab('today');
+};
+
+window.cancelPendingShop=function(){
+  pendingShop=null;
+  document.getElementById('pending-photo-section').style.display='none';
+};
 
 function syncToSheet(shop){
   const statusTH={pending:'กำลังพิจารณา',quote:'ขอใบเสนอราคา',reject:'ปฏิเสธ'};
@@ -620,15 +686,19 @@ function addShop(){
   if(!name||!phone){ alert('กรุณากรอกชื่อร้านและเบอร์โทร'); return; }
   const today=getReportDate();
   if(data.filter(s=>s.date===today).length>=5&&!confirm('ครบ 5 ร้านแล้ว ต้องการเพิ่มเติมหรือไม่?')) return;
-  data.unshift({ id:Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:today, name, phone,
+  
+  // สร้างร้านชั่วคราวก่อนเพื่อรอรูป
+  const tempId = Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  pendingShop = { id:tempId, date:today, name, phone,
     addr:document.getElementById('fAddr').value.trim(), type:document.getElementById('fType').value,
     status:document.getElementById('fStatus').value, note:document.getElementById('fNote').value.trim(),
-    photos:[], appt:null, created:new Date().toISOString() });
-  save();
-  syncToSheet(data[0]);
-  ['fName','fPhone','fAddr','fNote'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('fType').value=''; document.getElementById('fStatus').value='pending';
-  render(); switchTab('today');
+    photos:[], appt:null, created:new Date().toISOString() };
+  
+  // เปิดให้อัปโหลดรูป
+  document.getElementById('pending-photo-section').style.display='block';
+  document.getElementById('pending-name').textContent = name;
+  document.getElementById('pending-photos').innerHTML = '';
+  updatePendingPhotoUI();
 }
 function chgStatus(id,status){ const s=data.find(d=>d.id===id); if(s){s.status=status;save();render();} }
 function delShop(id){ if(!confirm('ลบร้านค้านี้?')) return; data=data.filter(d=>d.id!==id);save();render(); }
